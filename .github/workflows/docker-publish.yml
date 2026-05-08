@@ -68,7 +68,7 @@ jobs:
           push: true
           build-args: |
             CUDA_VERSION=12.8.1
-            UBUNTU_VERSION=22.04
+            UBUNTU_VERSION=24.04
           tags: |
             ${{ steps.tags.outputs.latest }}
             ${{ steps.tags.outputs.dated }}
