@@ -1,0 +1,58 @@
+name: Sync with upstream
+
+on:
+  schedule:
+    - cron: '0 6 * * *'  # Every day at 06:00 UTC
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Force sync (overwrites local divergence)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream remote
+        run: git remote add upstream https://github.com/TheTom/llama-cpp-turboquant.git
+
+      - name: Fetch upstream
+        run: git fetch upstream --tags
+
+      - name: Sync default branch
+        env:
+          FORCE: ${{ inputs.force || 'false' }}
+        run: |
+          BRANCH="feature/turboquant-kv-cache"
+          git checkout "$BRANCH"
+
+          if [ "$FORCE" = "true" ]; then
+            git reset --hard "upstream/$BRANCH"
+            git push origin "$BRANCH" --force
+            echo "Force-synced $BRANCH with upstream."
+          else
+            if git merge "upstream/$BRANCH" --ff-only; then
+              git push origin "$BRANCH"
+              echo "Fast-forward synced $BRANCH with upstream."
+            else
+              echo "::warning::Cannot fast-forward $BRANCH — local commits diverge from upstream. Run with force=true or rebase manually."
+              exit 1
+            fi
+          fi
+
+      - name: Sync tags
+        run: git push origin --tags --force
